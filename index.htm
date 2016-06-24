@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0">
+		<link rel="shortcut icon" type="image/x-icon" href="http://www.decade.com.br/images/favicon.ico" />
+		<link rel="stylesheet" href="http://fonts.googleapis.com/icon?family=Material+Icons">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.5/css/materialize.min.css">
+		<style type="text/css" media="screen">
+			body {
+				display: flex;
+				background-color: #f2f2f2;
+				min-height: 100vh;
+				flex-direction: column;
+			}
+
+			main {
+				flex: 1 0 auto;
+			}
+
+			.colors {
+
+			}
+
+			.colors .color {
+				width: 120px;
+				height: 120px;
+			}
+
+			.colors .color.vermelho {
+				color: white;
+				font-size: large;
+				background-color: #b71c1c;
+			}
+
+			.colors .color.vermelho.active {
+				background-color: red;
+			}
+
+			.colors .color.verde {
+				color: white;
+				font-size: large;
+				background-color: #1b5e20;
+			}
+
+			.colors .color.verde.active {
+				background-color: green;
+			}
+
+			.colors .color.azul {
+				color: white;
+				font-size: large;
+				background-color: #01579b;
+			}
+
+			.colors .color.azul.active {
+				background-color: blue;
+			}
+
+			.colors .color.amarelo {
+				color: white;
+				font-size: large;
+				background-color: #f57f17;
+			}
+
+			.colors .color.amarelo.active {
+				background-color: yellow;
+			}
+		</style>
+		<script type="text/javascript">
+			var MAX_SEQUENCE = 1024;
+			var HOLD_ON = 500;
+
+			var temperature = 0;
+			var humidity = 0;
+
+			function createXmlHttpObject() {
+				if (window.XMLHttpRequest) {
+					xmlHttp = new XMLHttpRequest();
+				} else {
+					xmlHttp = new ActiveXObject("Microsoft.XMLHTTP");
+				}
+
+				return xmlHttp;
+			}
+
+			var xmlHttp = createXmlHttpObject();
+			var conSocket;
+
+			function startWebSocketObject() {
+				conSocket = new WebSocket("ws://" + location.hostname + ":3131/", ["arduino"]);
+
+				conSocket.onopen = function() {
+					$("#SOCKET").html(new Date());
+					conSocket.send("Socket.Open: " + new Date()); 
+				};
+
+				conSocket.onerror = function(error) {
+					$("#SOCKET").html(error);
+					console.log("Socket.Error: ", error);
+				};
+
+				conSocket.onmessage = function(e) {
+					$("#SOCKET").html(e.data);
+					console.log("Socket.Message: ", e.data);
+				};
+			}
+
+			function handleResponse() {
+				if (xmlHttp.readyState == 4 && xmlHttp.status == 200) {
+					xmlResponse = xmlHttp.responseXML;
+
+					temperature = Math.round(xmlResponse.getElementsByTagName("temperature")[0].firstChild.nodeValue) + "&#176;c";
+					humidity = Math.round(xmlResponse.getElementsByTagName("humidity")[0].firstChild.nodeValue) + "%";
+
+					$("#DHT22").html("Temperature: " + temperature + " Humidity: " + humidity);
+				}
+			}
+
+			function handleRequest(roundPlayer, redLed, greenLed, blueLed) {
+				if (xmlHttp.readyState == 0 || xmlHttp.readyState == 4) {
+					xmlHttp.open("GET", "/request?roundPlayer=" + roundPlayer + "&redLed=" + redLed + "&greenLed=" + greenLed + "&blueLed=" + blueLed, true);
+					xmlHttp.onreadystatechange = handleResponse;
+					xmlHttp.send(null);
+				}
+			}
+
+			function getColorName(colorIndex) {
+				switch (colorIndex) {
+					case 0:
+						return "RED (VERMELHO)";
+
+						break;
+					case 1:
+						return "GREEN (VERDE)";
+
+						break;
+					case 2:
+						return "YELLOW (AMARELO)";
+
+						break;
+					case 3:
+						return "BLUE (AZUL)";
+
+						break;
+				}
+			}
+
+			function getRGB() {
+				var r = parseInt(document.getElementById("R").value).toString(16);
+				var g = parseInt(document.getElementById("G").value).toString(16);
+				var b = parseInt(document.getElementById("B").value).toString(16);
+
+				if (r.length < 2) {
+					r = "0" + r; 
+				}
+
+				if (g.length < 2) {
+					g = "0" + g; 
+				}
+
+				if (b.length < 2) {
+					b = "0" + b; 
+				}
+
+				var rgb = "#" + r + g + b;
+
+				$("body").css("background-color", rgb);
+
+				conSocket.send(rgb);
+			}
+		</script>
+		<title>NodeMCU (ESP8266)</title>
+	</head>
+	<body>
+		<header>
+			<div class="container-fluid">
+				<div class="z-depth-1">
+					<ul class="tabs">
+						<li class="tab col l6 m6 s6"><a class="active" href="#GAME">GENIUS GAME</a></li>
+						<li class="tab col l6 m6 s6"><a class="active" href="#LEDS">RGB LED</a></li>
+					</ul>
+				</div>
+			</div>
+		</header>
+		<main>
+			<div class="section" id="GAME">
+				<div class="container">
+					<div class="row">
+						<div class="col l12 m12 s12">
+							<a class="btn-floating btn-large waves-effect waves-circle waves-light z-depth-2 start"><i class="material-icons">loop</i>NEW GAME</a>
+                        	<a class="btn-floating btn-large waves-effect waves-circle waves-light modal-trigger z-depth-2" href="#THING_SPEAK"><i class="material-icons">open_in_new</i>INFO</a>
+							<span id="SEGMENT" class="badge">WELCOME GAMER</span>
+						</div>
+					</div>
+				</div>
+				<div id="menu-game" class="menu">
+					<div class="container center">
+						<div class="row">
+							<div class="col l12 m12 s12 colors">
+								<div class="card">
+									<div class="card-content white-text">
+										<button type="button" id="RED_LED" class="btn btn-large waves-effect waves-red z-depth-4 color vermelho">R</button>
+										<button type="button" id="GREEN_LED" class="btn btn-large waves-effect waves-green z-depth-4 color verde">G</button>
+										<button type="button" id="YELLOW_LED" class="btn btn-large waves-effect waves-yellow z-depth-4 color amarelo">Y</button>
+										<button type="button" id="BLUE_LED" class="btn btn-large waves-effect waves-light z-depth-4 color azul">B</button>
+									</div>
+									<div class="card-action left-align teal lighten-1 white-text">
+										<span>AJAX Connection</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div id="THING_SPEAK" class="modal modal-fixed-footer">
+					<div class="modal-content">
+						<h4>Internet Of Things</h4>
+						<p>Dados coletados e armazenados para análise. Visite: <a href="https://thingspeak.com/channels/87678">Thing Speak</a>.</p>
+                        <div class="container center">
+						    <div class="row">
+							    <div class="col l12 m12 s12">
+								    <iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/87678/charts/2?bgcolor=%23f2f2f2&color=blue&dynamic=true&results=60&title=DHT22+%28sensor%29&type=spline&xaxis=Per%C3%ADodo&yaxis=Temperatura+%28%C2%B0C%29"></iframe>
+                                    <br>
+								    <iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/87678/charts/1?bgcolor=%23f2f2f2&color=green&dynamic=true&results=60&title=DHT22+%28sensor%29&type=spline&xaxis=Per%C3%ADodo&yaxis=Umidade+%28%25%29"></iframe>
+                                    <br>
+								    <iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/87678/charts/3?bgcolor=%23f2f2f2&color=red&dynamic=true&max=10&min=1&results=60&title=GENIUS+%28score%29&type=column&xaxis=Per%C3%ADodo&yaxis=Pontua%C3%A7%C3%A3o+%28acertos%29"></iframe>
+                                    <br>
+								    <iframe width="450" height="260" style="border: 0px solid #f2f2f2;" src="https://thingspeak.com/channels/87678/maps/channel_show"></iframe>
+							    </div>
+						    </div>
+					    </div>
+					</div>
+                    <div class="modal-footer">
+                        <a href="#!" class="btn-flat waves-effect waves-teal modal-action modal-close">Cancel</a>
+                    </div>
+				</div>
+			</div>
+			<div class="section" id="LEDS">
+				<div class="container">
+					<div class="row">
+						<div class="switch">
+							<label>
+								OFF
+								<input type="checkbox" class="connect">
+								<span class="lever"></span>
+								ON
+							</label>
+							<span id="SOCKET" class="badge">DISCONNECTED</span>
+						</div>
+					</div>
+				</div>
+				<div id="menu-rgb" class="menu">
+					<div class="container center">
+						<div class="row">
+							<div class="col l12 m12 s12">
+								<div class="card">
+									<div class="card-content white-text">
+										<p class="range-field red-text">R<input type="range" id="R" class="rgb" disabled value="255"  min="0" max="255" step="1" onchange="getRGB();" /></p>
+										<p class="range-field green-text">G<input type="range" id="G" class="rgb" disabled value="255"  min="0" max="255" step="1" onchange="getRGB();" /></p>
+										<p class="range-field blue-text">B<input type="range" id="B" class="rgb" disabled value="255"  min="0" max="255" step="1" onchange="getRGB();" /></p>
+									</div>
+									<div class="card-action left-align teal lighten-1 white-text">
+										<span>WebSocket Connection</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+		<footer class="page-footer">
+			<div class="footer-copyright">
+				<div class="container">
+					<span class="grey-text text-lighten-4 left" id="DHT22">&nbsp;</span>
+					<a class="grey-text text-lighten-4 right" href="http://blog.decade.com.br/?page_id=7">blog.decade.com.br</a>
+				</div>
+			</div>
+		</footer>
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js" type="text/javascript"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.5/js/materialize.min.js"></script>
+		<script type="text/javascript">
+			$(document).ready(function() {
+				var block = true;
+
+				var colors = $(".colors").find(".color");
+
+				var RoundPlayer = new Array();
+				var RightAnswer = new Array();
+
+				$(document).ready(function() {
+					$(".modal-trigger").leanModal();
+				});
+
+				function check() {
+					for (var i = 0; i < RightAnswer.length; i++) {
+						if (RightAnswer[i] != RoundPlayer[i]) {
+							block = true;
+
+							Materialize.toast("YOU LOOSE!", 2000, "rounded")
+							$("#SEGMENT").html("TRY AGAIN...");
+							console.log("YOU LOOSE!");
+
+							handleRequest(RoundPlayer.length, 0, 0, 0);
+
+							return false;
+						}
+					}
+
+					return true;
+				}
+
+				function next() {
+					var active = parseInt(Math.random() * colors.length);
+
+					RoundPlayer.push(active);
+
+					var i = 0;
+
+					function run() {
+						animate(RoundPlayer[i]);
+
+						i++;
+
+						if(i < RoundPlayer.length) {
+							setTimeout(run, 1000);
+						}
+					}
+
+					run();
+
+					RightAnswer = new Array();
+				}
+
+				function compute(p) {
+					if (block) {
+						return;
+					}
+
+					RightAnswer.push(p);
+
+					if (!check()) {
+						return;
+					} else {
+						animate(p);
+					}
+
+					if (RightAnswer.length == RoundPlayer.length) {
+						setTimeout(next, 1000);
+					}
+				}
+
+				function animate(i) {
+					if (block) {
+						return;
+					}
+
+					if (RoundPlayer.length > MAX_SEQUENCE) {
+						block = true;
+
+						Materialize.toast("YOU WIN", 2000, "rounded")
+						$("#SEGMENT").html("CONGRATULATIONS!");
+						console.log("YOU WIN");
+
+						setTimeout(function() {
+							handleRequest(MAX_SEQUENCE, 0, 0, 0);
+						}, HOLD_ON);
+
+						return;
+					}
+
+					$("#SEGMENT").html(RoundPlayer.length);
+					console.log(RoundPlayer.length);
+					console.log(getColorName(i));
+
+					//$($(".color").get(i)).switchClass("", "active", HOLD_ON).switchClass("active", "", HOLD_ON);
+					$($(".color").get(i)).fadeOut().fadeIn();
+				}
+
+				$(".color").click(function() {
+					if (!block) {
+						var button = $(this).index();
+
+						var redLed = (button == 0 || button == 3) ? 255:0;
+						var greenLed = (button == 1 || button == 3) ? 255:0;
+						var blueLed = (button == 2) ? 255:0;
+
+						compute(button);
+
+						handleRequest(0, redLed, greenLed, blueLed);
+					}
+				});
+
+				$(".start").click(function() {
+					document.getElementById("R").value = 255;
+					document.getElementById("G").value = 255;
+					document.getElementById("B").value = 255;
+
+					$("body").css("background-color", "#f2f2f2");
+
+					if (xmlHttp.readyState == 0 || xmlHttp.readyState == 4) {
+						xmlHttp.open("PUT", "response", true);
+						xmlHttp.onreadystatechange = handleResponse;
+						xmlHttp.send(null);
+					}
+
+					block = false;
+
+					RoundPlayer = new Array();
+					RightAnswer = new Array();
+
+					next();
+				});
+
+				$(".connect").click(function() {
+					$(".connect").prop( "disabled", true );
+
+					if ($(".connect").prop("checked")) {
+						$( ".rgb" ).prop( "disabled", false);
+
+						startWebSocketObject();
+					}
+				});
+			});
+		</script>
+	</body>
+</html>
